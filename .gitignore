@@ -1,0 +1,9 @@
+venv/
+.claude/
+*.pdf
+*.docx
+*.pptx
+*.step
+*.msh
+__pycache__/
+*.pyc
