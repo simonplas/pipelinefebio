@@ -1,5 +1,9 @@
 venv/
+.codex
 .claude/
+.vscode/
+.idea/
+.DS_Store
 *.pdf
 *.docx
 *.pptx
