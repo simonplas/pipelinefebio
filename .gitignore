@@ -1,4 +1,5 @@
 venv/
+.tools/
 .codex
 .claude/
 .vscode/
@@ -7,8 +8,37 @@ venv/
 *.pdf
 *.docx
 *.pptx
+*.tex
+*.bib
+*.cls
+*.sty
 literature_paper_tracker.xlsx
+related_work_notes.md
 *.step
 *.msh
 __pycache__/
 *.pyc
+
+# LaTeX build output
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.toc
+*.atfi
+*-words.sum
+
+# FEBio generated models/results
+*.fsm
+*.xplt
+febio_step/jobs/
+febio_step/output
+
+# Generated logo build files
+logo/*.aux
+logo/*.log

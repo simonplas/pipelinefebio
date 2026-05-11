@@ -5,4 +5,4 @@ cyl = doc.addObject("Part::Cylinder", "myCylinder")
 cyl.Radius = radius
 cyl.Height = height
 doc.recompute()
-cyl.Shape.exportStep("/home/simon/pipelinefebio/freecad/cylinder.step")
+cyl.Shape.exportStep("/home/simon/pipelinefebio/freecad_step/cylinder.step")
