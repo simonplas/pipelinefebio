@@ -1,11 +1,16 @@
+from pathlib import Path
+import sys
+
 import gmsh
 
-mesh_size = 0.5
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from config import MESH_FORMAT_VERSION, MESH_SIZE, MSH_FILE, STEP_FILE
 
 gmsh.initialize()
 gmsh.model.add("cylinder")
 
-gmsh.model.occ.importShapes("/home/simon/pipelinefebio/freecad_step/cylinder.step")
+gmsh.model.occ.importShapes(str(STEP_FILE))
 gmsh.model.occ.synchronize()
 
 volumes = gmsh.model.getEntities(3)
@@ -39,11 +44,11 @@ gmsh.model.addPhysicalGroup(2, [top_face], tag=3, name="top_face")
 gmsh.model.addPhysicalGroup(2, [outer_wall], tag=4, name="outer_wall")
 
 
-gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
-gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+gmsh.option.setNumber("Mesh.MeshSizeMin", MESH_SIZE)
+gmsh.option.setNumber("Mesh.MeshSizeMax", MESH_SIZE)
+gmsh.option.setNumber("Mesh.MshFileVersion", MESH_FORMAT_VERSION)
 
 gmsh.model.mesh.generate(3)
-gmsh.write("/home/simon/pipelinefebio/gmsh_step/cylinder.msh")
+gmsh.write(str(MSH_FILE))
 
 gmsh.finalize()

@@ -29,6 +29,7 @@ __pycache__/
 *.log
 *.out
 *.run.xml
+*.synctex.gz
 *.toc
 *.atfi
 *-words.sum
