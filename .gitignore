@@ -18,8 +18,9 @@ related_work_notes.md
 *.msh
 __pycache__/
 *.pyc
+gmsh_step/check_mesh_quality.py
 
-# LaTeX build output
+
 *.aux
 *.bbl
 *.bcf
@@ -34,12 +35,12 @@ __pycache__/
 *.atfi
 *-words.sum
 
-# FEBio generated models/results
 *.fsm
 *.xplt
+*.hdf5
 febio_step/jobs/
 febio_step/output
 
-# Generated logo build files
+
 logo/*.aux
 logo/*.log
