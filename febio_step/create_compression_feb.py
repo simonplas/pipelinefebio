@@ -5,7 +5,7 @@ import pyfebio as feb
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from config import FEB_FILE
+from config import COMPRESSION_DISPLACEMENT_Z, FEB_FILE
 from febio_step.febio_helpers import (
     FIXED_NODE_SET,
     add_load_curve,
@@ -17,9 +17,6 @@ from febio_step.febio_helpers import (
 )
 
 LOADED_NODE_SET = "top_face"
-
-
-TOP_DISPLACEMENT_Z = -0.1
 
 
 def add_compression_boundary_conditions(model):
@@ -37,7 +34,7 @@ def add_compression_boundary_conditions(model):
         feb.boundary.BCPrescribedDisplacement(
             node_set=LOADED_NODE_SET,
             dof="z",
-            value=feb.boundary.Value(lc=1, text=TOP_DISPLACEMENT_Z),
+            value=feb.boundary.Value(lc=1, text=COMPRESSION_DISPLACEMENT_Z),
         )
     )
 

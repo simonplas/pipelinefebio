@@ -8,7 +8,7 @@ from pyfebio import xplt
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from config import FEB_FILE
+from config import COMPRESSION_DISPLACEMENT_Z, FEB_FILE, LOAD_CASE
 
 
 XPLT_FILE = FEB_FILE.with_suffix(".xplt")
@@ -43,7 +43,7 @@ def read_group_values(group):
 
 
 def read_last_results():
-    """Read displacement, stress, and strain from the last time step."""
+    """Read the main result fields from the last time step."""
     with h5py.File(HDF5_FILE, "r") as result_file:
         states_group = result_file["states"]
         state_numbers = sorted(states_group.keys(), key=int)
@@ -57,14 +57,25 @@ def read_last_results():
         element_data_group = last_state_group["element_data"]
 
         displacement_group = node_data_group["displacement"]
+        reaction_force_group = node_data_group["reaction forces"]
         stress_group = element_data_group["stress"]
         strain_group = element_data_group["Lagrange strain"]
 
         displacement = read_group_values(displacement_group)
+        reaction_forces = read_group_values(reaction_force_group)
         stress = read_group_values(stress_group)
         strain = read_group_values(strain_group)
 
-    return last_state, last_time, displacement, stress, strain
+        top_face_node_indices = result_file["meshes/0/nodesets/top_face"][:]
+        top_face_reaction_forces = []
+
+        for node_index in top_face_node_indices:
+            reaction_force_at_node = reaction_forces[node_index]
+            top_face_reaction_forces.append(reaction_force_at_node)
+
+        top_face_reaction_forces = np.array(top_face_reaction_forces)
+
+    return last_state, last_time, displacement, reaction_forces, top_face_reaction_forces, stress, strain
 
 
 def print_result_summary(name, values):
@@ -76,6 +87,20 @@ def print_result_summary(name, values):
     print(f"- average magnitude: {magnitude.mean()}")
     print(f"- minimum components: {values.min(axis=0)}")
     print(f"- maximum components: {values.max(axis=0)}")
+
+
+def print_compression_stiffness(top_face_reaction_forces):
+    """Estimate compression stiffness from reaction force and displacement."""
+    total_reaction_force = top_face_reaction_forces.sum(axis=0)
+    z_reaction_force = total_reaction_force[2]
+    displacement = abs(COMPRESSION_DISPLACEMENT_Z)
+    stiffness = abs(z_reaction_force) / displacement
+
+    print("\ncompression stiffness")
+    print(f"- total reaction force on top face: {total_reaction_force}")
+    print(f"- z reaction force: {z_reaction_force}")
+    print(f"- prescribed displacement: {COMPRESSION_DISPLACEMENT_Z}")
+    print(f"- estimated stiffness: {stiffness}")
 
 
 def main():
@@ -103,14 +128,18 @@ def main():
         print(f"- conversion error: {error}")
         return
 
-    last_state, last_time, displacement, stress, strain = read_last_results()
+    last_state, last_time, displacement, reaction_forces, top_face_reaction_forces, stress, strain = read_last_results()
 
     print("\nresult summary")
     print(f"- last state: {last_state}")
     print(f"- last time: {last_time}")
     print_result_summary("displacement", displacement)
+    print_result_summary("reaction forces", reaction_forces)
     print_result_summary("stress", stress)
     print_result_summary("lagrange strain", strain)
+
+    if LOAD_CASE == "compression":
+        print_compression_stiffness(top_face_reaction_forces)
 
 
 if __name__ == "__main__":

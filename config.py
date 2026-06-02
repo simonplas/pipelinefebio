@@ -10,6 +10,9 @@ GEOMETRY_NAME = "cylinder"
 # Options: "compression" or "pressure".
 LOAD_CASE = "compression"
 
+# Compression test setting.
+COMPRESSION_DISPLACEMENT_Z = -0.1
+
 
 
 # FreeCAD settings
