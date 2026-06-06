@@ -1,5 +1,6 @@
 gmsh==4.15.2
 h5py==3.16.0
+matplotlib==3.10.9
 meshio==5.3.5
 numpy==2.4.4
 pyfebio==0.2.0

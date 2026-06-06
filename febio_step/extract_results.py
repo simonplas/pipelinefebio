@@ -8,9 +8,20 @@ from pyfebio import xplt
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from config import COMPRESSION_DISPLACEMENT_Z, FEB_FILE, LOAD_CASE
+from config import (
+    COMPRESSION_DISPLACEMENT_Z,
+    CYLINDER_HEIGHT,
+    CYLINDER_INNER_RADIUS,
+    CYLINDER_RADIUS,
+    CYLINDER_TYPE,
+    FEB_FILE,
+    LOAD_CASE,
+    YOUNG_MODULUS,
+)
 from febio_step.result_helpers import (
     calculate_compression_stiffness,
+    calculate_percent_difference,
+    calculate_theoretical_compression_stiffness,
     read_last_result_values,
     read_reaction_forces_for_node_set,
 )
@@ -22,7 +33,7 @@ LOG_FILE = FEB_FILE.with_suffix(".log")
 
 
 def febio_finished_normally():
-    """Check the FEBio log file for a normal termination message."""
+    """check if febio says it ended normally"""
     if not LOG_FILE.exists():
         return False
 
@@ -30,15 +41,15 @@ def febio_finished_normally():
 
 
 def convert_xplt_to_hdf5():
-    """Convert FEBio's xplt result file to hdf5 so Python can read it."""
+    """convert the xplt file so python can read it"""
     if not XPLT_FILE.exists():
         raise FileNotFoundError(f"FEBio xplt file was not found: {XPLT_FILE}")
 
     original_set_attribute = AttributeManager.__setitem__
 
     def skip_duplicate_surface_faces_attribute(attribute_manager, name, value):
-        # pyfebio already saves surface faces as datasets. On fine meshes the
-        # duplicate HDF5 attribute becomes too large, so we skip only that one.
+        # pyfebio already saves surface faces as datasets
+        # on fine meshes the duplicate hdf5 attribute gets too large
         if name == "faces":
             return
 
@@ -64,21 +75,32 @@ def print_result_summary(name, values):
 
 
 def print_compression_stiffness(top_face_reaction_forces):
-    """Estimate compression stiffness from reaction force and displacement."""
+    """print the stiffness from febio and from the simple theory"""
     total_reaction_force, z_reaction_force, stiffness = calculate_compression_stiffness(
         top_face_reaction_forces,
         COMPRESSION_DISPLACEMENT_Z,
     )
+    theoretical_stiffness = calculate_theoretical_compression_stiffness(
+        CYLINDER_TYPE,
+        CYLINDER_RADIUS,
+        CYLINDER_INNER_RADIUS,
+        CYLINDER_HEIGHT,
+        YOUNG_MODULUS,
+    )
+    stiffness_difference = calculate_percent_difference(stiffness, theoretical_stiffness)
 
     print("\ncompression stiffness")
     print(f"- total reaction force on top face: {total_reaction_force}")
     print(f"- z reaction force: {z_reaction_force}")
     print(f"- prescribed displacement: {COMPRESSION_DISPLACEMENT_Z}")
-    print(f"- estimated stiffness: {stiffness}")
+    print(f"- febio stiffness: {stiffness}")
+    print(f"- simple theoretical stiffness: {theoretical_stiffness}")
+    print(f"- difference from theory: {stiffness_difference}%")
+    print("- note: the theoretical value uses the same model units as the geometry and material settings")
 
 
 def main():
-    """Print a small summary of the simulation results."""
+    """print a small summary of the simulation results"""
     print(f"reading febio result file: {XPLT_FILE}")
 
     try:

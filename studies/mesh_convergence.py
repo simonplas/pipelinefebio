@@ -1,8 +1,7 @@
-"""Run the same simulation with several mesh sizes.
+"""run the same simulation with several mesh sizes
 
-This is a small parameter study. It does not change config.py directly.
-Instead it starts the normal pipeline with a temporary mesh size setting and
-writes the most important results to a CSV file.
+this is a small parameter study
+it starts the normal pipeline with temporary settings and saves the results
 """
 
 import csv
@@ -16,9 +15,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
-from config import COMPRESSION_DISPLACEMENT_Z, COMPRESSION_FEB_FILE
+from config import (
+    COMPRESSION_DISPLACEMENT_Z,
+    COMPRESSION_FEB_FILE,
+    CYLINDER_HEIGHT,
+    CYLINDER_INNER_RADIUS,
+    CYLINDER_RADIUS,
+    YOUNG_MODULUS,
+)
 from febio_step.result_helpers import (
     calculate_compression_stiffness,
+    calculate_percent_difference,
+    calculate_theoretical_compression_stiffness,
     maximum_magnitude,
     read_last_result_values,
     read_reaction_forces_for_node_set,
@@ -30,14 +38,14 @@ RESULTS_FOLDER = ROOT / "study_results"
 RESULTS_FILE = RESULTS_FOLDER / "mesh_convergence.csv"
 HDF5_FILE = COMPRESSION_FEB_FILE.with_suffix(".hdf5")
 
-# Smaller values give a finer mesh, but also create larger FEBio result files.
-# The study saves fewer time steps than the normal pipeline so these are still testable.
+# smaller values give a finer mesh but also bigger febio output files
+# the study saves fewer time steps so these cases stay testable
 MESH_SIZES = [1.0, 0.75, 0.5, 0.35, 0.25]
 CYLINDER_TYPES = ["solid", "hollow"]
 
 
-def calculate_result_numbers():
-    """Read the final displacement, stress, strain, and stiffness values."""
+def calculate_result_numbers(cylinder_type):
+    """read the final values from the last run"""
     result_values = read_last_result_values(HDF5_FILE)
     top_face_reaction_forces = read_reaction_forces_for_node_set(
         HDF5_FILE,
@@ -48,6 +56,14 @@ def calculate_result_numbers():
         top_face_reaction_forces,
         COMPRESSION_DISPLACEMENT_Z,
     )
+    theoretical_stiffness = calculate_theoretical_compression_stiffness(
+        cylinder_type,
+        CYLINDER_RADIUS,
+        CYLINDER_INNER_RADIUS,
+        CYLINDER_HEIGHT,
+        YOUNG_MODULUS,
+    )
+    stiffness_error_percent = calculate_percent_difference(compression_stiffness, theoretical_stiffness)
 
     return {
         "nodes": result_values["nodes"],
@@ -56,17 +72,19 @@ def calculate_result_numbers():
         "max_stress": maximum_magnitude(result_values["stress"]),
         "max_strain": maximum_magnitude(result_values["strain"]),
         "compression_stiffness": compression_stiffness,
+        "theoretical_stiffness": theoretical_stiffness,
+        "stiffness_error_percent": stiffness_error_percent,
     }
 
 
 def remove_old_hdf5_file():
-    """Remove the previous HDF5 file so we do not read old results by mistake."""
+    """remove old hdf5 output so we do not read stale results"""
     if HDF5_FILE.exists():
         HDF5_FILE.unlink()
 
 
 def run_pipeline_with_settings(cylinder_type, mesh_size):
-    """Run main.py once with a temporary cylinder type and mesh size."""
+    """run main once with temporary settings"""
     print(f"\nrunning {cylinder_type} cylinder with mesh size {mesh_size}")
 
     environment = os.environ.copy()
@@ -83,7 +101,7 @@ def run_pipeline_with_settings(cylinder_type, mesh_size):
     end_time = time.perf_counter()
 
     run_time = end_time - start_time
-    result_numbers = calculate_result_numbers()
+    result_numbers = calculate_result_numbers(cylinder_type)
     result_numbers["cylinder_type"] = cylinder_type
     result_numbers["mesh_size"] = mesh_size
     result_numbers["run_time_seconds"] = run_time
@@ -92,7 +110,7 @@ def run_pipeline_with_settings(cylinder_type, mesh_size):
 
 
 def write_results(rows):
-    """Save the study results so they can be plotted later."""
+    """save the study results to csv"""
     RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)
 
     fieldnames = [
@@ -105,6 +123,8 @@ def write_results(rows):
         "max_stress",
         "max_strain",
         "compression_stiffness",
+        "theoretical_stiffness",
+        "stiffness_error_percent",
         "status",
         "error",
     ]
@@ -137,6 +157,8 @@ def main():
                     "max_stress": "",
                     "max_strain": "",
                     "compression_stiffness": "",
+                    "theoretical_stiffness": "",
+                    "stiffness_error_percent": "",
                     "status": "failed",
                     "error": str(error),
                 }

@@ -1,8 +1,7 @@
-"""Run the compression simulation with several Young's modulus values.
+"""run the compression simulation with several youngs modulus values
 
-This study keeps the mesh size fixed and only changes the material stiffness.
-That makes it easier to check if the pipeline responds logically when the
-material parameters are changed.
+this keeps the mesh fixed and only changes the material stiffness
+that makes it easier to see if the pipeline reacts in a logical way
 """
 
 import csv
@@ -16,9 +15,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
-from config import COMPRESSION_DISPLACEMENT_Z, COMPRESSION_FEB_FILE
+from config import (
+    COMPRESSION_DISPLACEMENT_Z,
+    COMPRESSION_FEB_FILE,
+    CYLINDER_HEIGHT,
+    CYLINDER_INNER_RADIUS,
+    CYLINDER_RADIUS,
+)
 from febio_step.result_helpers import (
     calculate_compression_stiffness,
+    calculate_percent_difference,
+    calculate_theoretical_compression_stiffness,
     maximum_magnitude,
     read_last_result_values,
     read_reaction_forces_for_node_set,
@@ -30,16 +37,17 @@ RESULTS_FOLDER = ROOT / "study_results"
 RESULTS_FILE = RESULTS_FOLDER / "youngs_modulus.csv"
 HDF5_FILE = COMPRESSION_FEB_FILE.with_suffix(".hdf5")
 
-# Keep the mesh fixed, otherwise mesh effects and material effects get mixed.
+# keep the mesh fixed so mesh effects and material effects do not get mixed
 MESH_SIZE = 0.5
 CYLINDER_TYPES = ["solid", "hollow"]
 
-# Pa. The 193e9 value is the stainless steel value used in the normal pipeline.
+# pa
+# 193e9 is the stainless steel value used in the normal pipeline
 YOUNG_MODULUS_VALUES = [50e9, 100e9, 150e9, 193e9, 250e9]
 
 
-def calculate_result_numbers():
-    """Read the final displacement, stress, strain, reaction force, and stiffness."""
+def calculate_result_numbers(cylinder_type, young_modulus):
+    """read the final values from the last run"""
     result_values = read_last_result_values(HDF5_FILE)
     top_face_reaction_forces = read_reaction_forces_for_node_set(
         HDF5_FILE,
@@ -50,6 +58,14 @@ def calculate_result_numbers():
         top_face_reaction_forces,
         COMPRESSION_DISPLACEMENT_Z,
     )
+    theoretical_stiffness = calculate_theoretical_compression_stiffness(
+        cylinder_type,
+        CYLINDER_RADIUS,
+        CYLINDER_INNER_RADIUS,
+        CYLINDER_HEIGHT,
+        young_modulus,
+    )
+    stiffness_error_percent = calculate_percent_difference(compression_stiffness, theoretical_stiffness)
 
     return {
         "nodes": result_values["nodes"],
@@ -59,17 +75,19 @@ def calculate_result_numbers():
         "max_strain": maximum_magnitude(result_values["strain"]),
         "z_reaction_force": z_reaction_force,
         "compression_stiffness": compression_stiffness,
+        "theoretical_stiffness": theoretical_stiffness,
+        "stiffness_error_percent": stiffness_error_percent,
     }
 
 
 def remove_old_hdf5_file():
-    """Remove the previous HDF5 file so we do not read old results by mistake."""
+    """remove old hdf5 output so we do not read stale results"""
     if HDF5_FILE.exists():
         HDF5_FILE.unlink()
 
 
 def run_pipeline_with_settings(cylinder_type, young_modulus):
-    """Run main.py once with a temporary cylinder type and Young's modulus."""
+    """run main once with temporary settings"""
     print(f"\nrunning {cylinder_type} cylinder with Young's modulus {young_modulus}")
 
     environment = os.environ.copy()
@@ -87,7 +105,7 @@ def run_pipeline_with_settings(cylinder_type, young_modulus):
     end_time = time.perf_counter()
 
     run_time = end_time - start_time
-    result_numbers = calculate_result_numbers()
+    result_numbers = calculate_result_numbers(cylinder_type, young_modulus)
     result_numbers["cylinder_type"] = cylinder_type
     result_numbers["mesh_size"] = MESH_SIZE
     result_numbers["young_modulus"] = young_modulus
@@ -97,7 +115,7 @@ def run_pipeline_with_settings(cylinder_type, young_modulus):
 
 
 def write_results(rows):
-    """Save the study results so they can be plotted later."""
+    """save the study results to csv"""
     RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)
 
     fieldnames = [
@@ -112,6 +130,8 @@ def write_results(rows):
         "max_strain",
         "z_reaction_force",
         "compression_stiffness",
+        "theoretical_stiffness",
+        "stiffness_error_percent",
         "status",
         "error",
     ]
@@ -146,6 +166,8 @@ def main():
                     "max_strain": "",
                     "z_reaction_force": "",
                     "compression_stiffness": "",
+                    "theoretical_stiffness": "",
+                    "stiffness_error_percent": "",
                     "status": "failed",
                     "error": str(error),
                 }
