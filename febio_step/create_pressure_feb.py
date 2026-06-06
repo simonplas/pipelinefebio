@@ -5,7 +5,7 @@ import pyfebio as feb
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from config import CYLINDER_TYPE, PRESSURE_FEB_FILE
+from config import CYLINDER_TYPE, INTERNAL_PRESSURE, PRESSURE_FEB_FILE, PRESSURE_SURFACE
 from febio_step.febio_helpers import (
     FIXED_NODE_SET,
     add_load_curve,
@@ -16,10 +16,6 @@ from febio_step.febio_helpers import (
     read_mesh_for_febio,
 )
 
-
-PRESSURE_SURFACE = "inner_wall"
-# This is a very high pressure to make the deformation clearly visible 
-INTERNAL_PRESSURE = 2.0e10
 
 def check_geometry_type():
     """Internal pressure only makes sense for the hollow cylinder"""

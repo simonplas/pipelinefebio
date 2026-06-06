@@ -28,7 +28,9 @@ At the moment, the pipeline can:
 - run the FEBio solver from the command line with `febio4`;
 - create an `.xplt` result file;
 - convert the `.xplt` result file to `.hdf5`;
-- extract displacement results with Python.
+- extract displacement, reaction force, stress, strain, and compression
+  stiffness values with Python;
+- run small parameter studies for mesh convergence and Young's modulus.
 
 ## Project structure
 
@@ -44,9 +46,11 @@ At the moment, the pipeline can:
 │   ├── create_compression_feb.py
 │   ├── create_pressure_feb.py
 │   ├── extract_results.py
-│   └── febio_helpers.py
-├── docs/
-│   └── mesh_element_types.md
+│   ├── febio_helpers.py
+│   └── result_helpers.py
+├── studies/
+│   ├── mesh_convergence.py
+│   └── youngs_modulus.py
 └── thesis/
 ```
 
@@ -83,6 +87,15 @@ Available options:
 - `LOAD_CASE = "pressure"`: applies pressure to a wall surface, usually the
   `inner_wall` of the hollow cylinder.
 
+The compression displacement and pressure settings are also stored in
+`config.py`:
+
+```python
+COMPRESSION_DISPLACEMENT_Z = -0.1
+PRESSURE_SURFACE = "inner_wall"
+INTERNAL_PRESSURE = 2.0e10
+```
+
 ### Mesh settings
 
 ```python
@@ -106,6 +119,12 @@ First activate the virtual environment:
 
 ```bash
 source venv/bin/activate
+```
+
+Install the Python dependencies if needed:
+
+```bash
+pip install -r requirements.txt
 ```
 
 Then run:
@@ -150,7 +169,7 @@ The load-case-specific files are:
 
 - `febio_step/create_compression_feb.py`: this file fixes the bottom face and puts
   a downward displacement on the top face.
-- `febio_step/create_pressure_feb.py`: fthis file fixes the bottom face and applies
+- `febio_step/create_pressure_feb.py`: this file fixes the bottom face and applies
   pressure to the inner wall of a hollow cylinder.
 
 The current material is stainless steel:
@@ -172,3 +191,23 @@ from pyfebio import xplt
 
 xplt.to_hdf5(inputfile="result.xplt", outputfile="result.hdf5")
 ```
+
+The result extraction step currently prints:
+
+- final displacement values;
+- reaction forces;
+- stress;
+- Lagrange strain;
+- compression stiffness for the compression case.
+
+## Parameter studies
+
+Two small study scripts are included:
+
+- `studies/mesh_convergence.py`: runs the compression case for solid and hollow
+  cylinders with several mesh sizes.
+- `studies/youngs_modulus.py`: runs the compression case for several Young's
+  modulus values while keeping the mesh size fixed.
+
+The study scripts write CSV files to `study_results/`. That folder is ignored by
+Git because the files are generated output.

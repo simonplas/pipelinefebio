@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-import h5py
+from h5py._hl.attrs import AttributeManager
 import numpy as np
 from pyfebio import xplt
 
@@ -9,6 +9,11 @@ from pyfebio import xplt
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from config import COMPRESSION_DISPLACEMENT_Z, FEB_FILE, LOAD_CASE
+from febio_step.result_helpers import (
+    calculate_compression_stiffness,
+    read_last_result_values,
+    read_reaction_forces_for_node_set,
+)
 
 
 XPLT_FILE = FEB_FILE.with_suffix(".xplt")
@@ -29,53 +34,22 @@ def convert_xplt_to_hdf5():
     if not XPLT_FILE.exists():
         raise FileNotFoundError(f"FEBio xplt file was not found: {XPLT_FILE}")
 
-    xplt.to_hdf5(inputfile=str(XPLT_FILE), outputfile=str(HDF5_FILE))
+    original_set_attribute = AttributeManager.__setitem__
 
+    def skip_duplicate_surface_faces_attribute(attribute_manager, name, value):
+        # pyfebio already saves surface faces as datasets. On fine meshes the
+        # duplicate HDF5 attribute becomes too large, so we skip only that one.
+        if name == "faces":
+            return
 
-def read_group_values(group):
-    """Read all datasets inside one HDF5 group."""
-    values = []
+        original_set_attribute(attribute_manager, name, value)
 
-    for dataset_name in group:
-        values.append(group[dataset_name][:])
+    AttributeManager.__setitem__ = skip_duplicate_surface_faces_attribute
 
-    return np.vstack(values)
-
-
-def read_last_results():
-    """Read the main result fields from the last time step."""
-    with h5py.File(HDF5_FILE, "r") as result_file:
-        states_group = result_file["states"]
-        state_numbers = sorted(states_group.keys(), key=int)
-        last_state = state_numbers[-1]
-
-        last_state_group = states_group[last_state]
-        last_time_attribute = last_state_group.attrs["time"]
-        last_time = last_time_attribute[0]
-
-        node_data_group = last_state_group["node_data"]
-        element_data_group = last_state_group["element_data"]
-
-        displacement_group = node_data_group["displacement"]
-        reaction_force_group = node_data_group["reaction forces"]
-        stress_group = element_data_group["stress"]
-        strain_group = element_data_group["Lagrange strain"]
-
-        displacement = read_group_values(displacement_group)
-        reaction_forces = read_group_values(reaction_force_group)
-        stress = read_group_values(stress_group)
-        strain = read_group_values(strain_group)
-
-        top_face_node_indices = result_file["meshes/0/nodesets/top_face"][:]
-        top_face_reaction_forces = []
-
-        for node_index in top_face_node_indices:
-            reaction_force_at_node = reaction_forces[node_index]
-            top_face_reaction_forces.append(reaction_force_at_node)
-
-        top_face_reaction_forces = np.array(top_face_reaction_forces)
-
-    return last_state, last_time, displacement, reaction_forces, top_face_reaction_forces, stress, strain
+    try:
+        xplt.to_hdf5(inputfile=str(XPLT_FILE), outputfile=str(HDF5_FILE))
+    finally:
+        AttributeManager.__setitem__ = original_set_attribute
 
 
 def print_result_summary(name, values):
@@ -91,10 +65,10 @@ def print_result_summary(name, values):
 
 def print_compression_stiffness(top_face_reaction_forces):
     """Estimate compression stiffness from reaction force and displacement."""
-    total_reaction_force = top_face_reaction_forces.sum(axis=0)
-    z_reaction_force = total_reaction_force[2]
-    displacement = abs(COMPRESSION_DISPLACEMENT_Z)
-    stiffness = abs(z_reaction_force) / displacement
+    total_reaction_force, z_reaction_force, stiffness = calculate_compression_stiffness(
+        top_face_reaction_forces,
+        COMPRESSION_DISPLACEMENT_Z,
+    )
 
     print("\ncompression stiffness")
     print(f"- total reaction force on top face: {total_reaction_force}")
@@ -128,17 +102,22 @@ def main():
         print(f"- conversion error: {error}")
         return
 
-    last_state, last_time, displacement, reaction_forces, top_face_reaction_forces, stress, strain = read_last_results()
+    result_values = read_last_result_values(HDF5_FILE)
 
     print("\nresult summary")
-    print(f"- last state: {last_state}")
-    print(f"- last time: {last_time}")
-    print_result_summary("displacement", displacement)
-    print_result_summary("reaction forces", reaction_forces)
-    print_result_summary("stress", stress)
-    print_result_summary("lagrange strain", strain)
+    print(f"- last state: {result_values['last_state']}")
+    print(f"- last time: {result_values['last_time']}")
+    print_result_summary("displacement", result_values["displacement"])
+    print_result_summary("reaction forces", result_values["reaction_forces"])
+    print_result_summary("stress", result_values["stress"])
+    print_result_summary("lagrange strain", result_values["strain"])
 
     if LOAD_CASE == "compression":
+        top_face_reaction_forces = read_reaction_forces_for_node_set(
+            HDF5_FILE,
+            result_values["reaction_forces"],
+            "top_face",
+        )
         print_compression_stiffness(top_face_reaction_forces)
 
 

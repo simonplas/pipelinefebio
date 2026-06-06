@@ -40,6 +40,7 @@ gmsh_step/check_mesh_quality.py
 *.hdf5
 febio_step/jobs/
 febio_step/output
+study_results/
 
 
 logo/*.aux

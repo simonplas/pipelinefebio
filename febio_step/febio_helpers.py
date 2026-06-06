@@ -14,19 +14,20 @@ import pyfebio as feb
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from config import MSH_FILE
-
-MATERIAL_NAME = "stainless_steel"
-YOUNG_MODULUS = 193e9
-POISSON_RATIO = 0.3
-DENSITY = 8000
+from config import (
+    DENSITY,
+    FEBIO_OUTPUT_STRIDE,
+    FEBIO_PLOT_STRIDE,
+    FEBIO_STEP_SIZE,
+    FEBIO_TIME_STEPS,
+    MATERIAL_NAME,
+    MSH_FILE,
+    POISSON_RATIO,
+    YOUNG_MODULUS,
+)
 
 FIXED_NODE_SET = "bottom_face"
 SOLID_PART = "stent_volume"
-
-TIME_STEPS = 20
-STEP_SIZE = 0.05
-
 
 def print_febio_mesh_summary(mesh):
     """Print a short check of the labels pyfebio found in the mesh"""
@@ -90,9 +91,9 @@ def add_output_requests(model):
 
 def add_solver_control(model):
     model.control_ = feb.control.Control(
-        time_steps=TIME_STEPS,
-        step_size=STEP_SIZE,
-        plot_stride=1,
-        output_stride=1,
+        time_steps=FEBIO_TIME_STEPS,
+        step_size=FEBIO_STEP_SIZE,
+        plot_stride=FEBIO_PLOT_STRIDE,
+        output_stride=FEBIO_OUTPUT_STRIDE,
         time_stepper=None,
     )
