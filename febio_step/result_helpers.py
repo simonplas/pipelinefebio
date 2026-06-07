@@ -1,4 +1,4 @@
-"""small helper functions for reading febio result files"""
+"""Small helpers to read FEBio result files and compute simple metrics."""
 
 import math
 import h5py
@@ -6,7 +6,16 @@ import numpy as np
 
 
 def read_values_from_group(group):
-    """read all values in one hdf5 group"""
+    """Read and stack all datasets in an HDF5 group.
+
+    Parameters:
+    group : h5py.Group
+        HDF5 group with several datasets that have the same shape.
+
+    Returns:
+    np.ndarray
+        2D array with datasets stacked along axis 0.
+    """
     values = []
 
     for dataset_name in group:
@@ -16,7 +25,16 @@ def read_values_from_group(group):
 
 
 def get_last_state(result_file):
-    """get the last saved time step"""
+    """Return the last saved state name and its HDF5 group.
+
+    Parameters:
+    result_file : h5py.File
+        An opened HDF5 result file (read mode).
+
+    Returns:
+    (str, h5py.Group)
+        The last state key and the group object for that state.
+    """
     states_group = result_file["states"]
     state_numbers = sorted(states_group.keys(), key=int)
     last_state_number = state_numbers[-1]
@@ -25,7 +43,16 @@ def get_last_state(result_file):
 
 
 def count_elements(result_file):
-    """count the volume elements in the result file"""
+    """Count total number of volume elements in the result file.
+
+    Parameters:
+    result_file : h5py.File
+        Opened HDF5 result file.
+
+    Returns:
+    int
+        Total number of elements across all solid domains.
+    """
     domains_group = result_file["meshes/0/domains"]
     total_elements = 0
 
@@ -37,7 +64,22 @@ def count_elements(result_file):
 
 
 def read_node_set(result_file, node_set_name):
-    """read a named node set from the result file"""
+    """Get the node indices for a named node set.
+
+    Parameters:
+    result_file : h5py.File
+        Opened HDF5 result file.
+    node_set_name : str
+        Name of the node set to read.
+
+    Returns:
+    np.ndarray
+        Array of node indices (integers).
+
+    Raises:
+    KeyError
+        If the node set is missing in the file.
+    """
     node_sets_group = result_file["meshes/0/nodesets"]
 
     if node_set_name not in node_sets_group:
@@ -47,7 +89,18 @@ def read_node_set(result_file, node_set_name):
 
 
 def read_last_result_values(hdf5_file):
-    """read the main values from the last saved step"""
+    """Read main result arrays from the last saved step in an HDF5 file.
+
+    Parameters:
+    hdf5_file : str or Path
+        Path to the HDF5 file converted from FEBio '.xplt'.
+
+    Returns:
+    dict
+        Dict with keys: 'last_state', 'last_time', 'nodes', 'elements',
+        'displacement', 'reaction_forces', 'stress', 'strain'. Arrays are
+        NumPy arrays matching the stored shapes.
+    """
     with h5py.File(hdf5_file, "r") as result_file:
         nodes = result_file["meshes/0/nodes"]
         number_of_nodes = len(nodes)
@@ -77,7 +130,20 @@ def read_last_result_values(hdf5_file):
 
 
 def read_reaction_forces_for_node_set(hdf5_file, reaction_forces, node_set_name):
-    """get the reaction forces for one node set"""
+    """Get reaction force vectors for nodes in a named node set.
+
+    Parameters:
+    hdf5_file : str or Path
+        Path to the HDF5 file (used to read node set membership).
+    reaction_forces : np.ndarray
+        Array of reaction forces for all nodes.
+    node_set_name : str
+        The node set to extract.
+
+    Returns:
+    np.ndarray
+        Reaction forces restricted to the nodes in the set.
+    """
     with h5py.File(hdf5_file, "r") as result_file:
         node_indices = read_node_set(result_file, node_set_name)
 
@@ -91,14 +157,34 @@ def read_reaction_forces_for_node_set(hdf5_file, reaction_forces, node_set_name)
 
 
 def maximum_magnitude(values):
-    """get the largest magnitude"""
+    """Return the maximum magnitude among a list of vectors.
+
+    Parameters:
+    values : np.ndarray
+        Array of vectors with shape (N, dim).
+
+    Returns:
+    float
+        Maximum Euclidean norm.
+    """
     magnitudes = np.linalg.norm(values, axis=1)
 
     return magnitudes.max()
 
 
 def calculate_compression_stiffness(top_face_reaction_forces, displacement):
-    """calculate stiffness from force and displacement"""
+    """Compute total reaction force on the top face and stiffness.
+
+    Parameters:
+    top_face_reaction_forces : np.ndarray
+        Reaction forces for nodes on the top face (N x 3).
+    displacement : float
+        Prescribed displacement used for computing stiffness.
+
+    Returns:
+    tuple
+        (total_reaction_force, z_reaction_force, stiffness)
+    """
     total_reaction_force = top_face_reaction_forces.sum(axis=0)
     z_reaction_force = total_reaction_force[2]
     stiffness = abs(z_reaction_force) / abs(displacement)
@@ -107,7 +193,20 @@ def calculate_compression_stiffness(top_face_reaction_forces, displacement):
 
 
 def calculate_cylinder_area(cylinder_type, outer_radius, inner_radius):
-    """calculate the area of a solid or hollow cylinder"""
+    """Return cross-sectional area for solid or hollow cylinder.
+
+    Parameters:
+    cylinder_type : str
+        'solid' or 'hollow'.
+    outer_radius : float
+        Outer radius.
+    inner_radius : float
+        Inner radius (only used for 'hollow').
+
+    Returns:
+    float
+        Cross-sectional area.
+    """
     outer_area = math.pi * outer_radius**2
 
     if cylinder_type == "solid":
@@ -127,12 +226,18 @@ def calculate_theoretical_compression_stiffness(
     height,
     young_modulus,
 ):
-    """calculate the simple theoretical cylinder stiffness"""
+    """Compute a simple theoretical axial stiffness E*A/L for a cylinder.
+
+    Parameters are the cylinder geometry and Young's modulus.
+    """
     area = calculate_cylinder_area(cylinder_type, outer_radius, inner_radius)
 
     return young_modulus * area / height
 
 
 def calculate_percent_difference(value, reference_value):
-    """calculate the difference from a reference value"""
+    """Return percent difference relative to a reference value.
+
+    The returned value is 100 * (value - reference_value) / reference_value.
+    """
     return 100 * (value - reference_value) / reference_value

@@ -47,7 +47,19 @@ YOUNG_MODULUS_VALUES = [50e9, 100e9, 150e9, 193e9, 250e9]
 
 
 def calculate_result_numbers(cylinder_type, young_modulus):
-    """read the final values from the last run"""
+    """Grab numbers from the HDF5 and compute extra metrics for the run.
+
+    Parameters:
+    cylinder_type : str
+        'solid' or 'hollow'.
+    young_modulus : float
+        The Young's modulus used in this run.
+
+    Returns:
+    dict
+        Results including nodes, elements, max values, reaction force and
+        stiffness compared to theory.
+    """
     result_values = read_last_result_values(HDF5_FILE)
     top_face_reaction_forces = read_reaction_forces_for_node_set(
         HDF5_FILE,
@@ -81,13 +93,27 @@ def calculate_result_numbers(cylinder_type, young_modulus):
 
 
 def remove_old_hdf5_file():
-    """remove old hdf5 output so we do not read stale results"""
+    """Delete the previous HDF5 output so we don't accidentally read old data.
+
+    Called before each new pipeline run in the study.
+    """
     if HDF5_FILE.exists():
         HDF5_FILE.unlink()
 
 
 def run_pipeline_with_settings(cylinder_type, young_modulus):
-    """run main once with temporary settings"""
+    """Run the main pipeline once with temporary environment variables.
+
+    Parameters:
+    cylinder_type : str
+        'solid' or 'hollow'.
+    young_modulus : float
+        Young's modulus for this run.
+
+    Returns:
+    dict
+        Result numbers plus how long the run took.
+    """
     print(f"\nrunning {cylinder_type} cylinder with Young's modulus {young_modulus}")
 
     environment = os.environ.copy()
@@ -115,7 +141,12 @@ def run_pipeline_with_settings(cylinder_type, young_modulus):
 
 
 def write_results(rows):
-    """save the study results to csv"""
+    """Save the current list of study rows to the CSV results file.
+
+    Parameters:
+    rows : list[dict]
+        Rows produced during the study; written to 'RESULTS_FILE'.
+    """
     RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)
 
     fieldnames = [
@@ -143,6 +174,11 @@ def write_results(rows):
 
 
 def main():
+    """Run the Young's modulus study and write results as they complete.
+
+    Loops over the configured modulus values and cylinder types and saves
+    progress to CSV so the study can be resumed if interrupted.
+    """
     print("starting Young's modulus study")
 
     rows = []

@@ -20,7 +20,14 @@ LOADED_NODE_SET = "top_face"
 
 
 def add_compression_boundary_conditions(model):
-    """Fix the bottom face and move the top face downwards"""
+    """Add the simple BCs used for the compression test.
+
+    Parameters:
+    model : feb.model.Model
+        The pyfebio model to update.
+
+    Adds a fixed bottom and a prescribed z-displacement on the top face.
+    """
     model.boundary_.add_bc(
         feb.boundary.BCZeroDisplacement(
             node_set=FIXED_NODE_SET,
@@ -40,7 +47,12 @@ def add_compression_boundary_conditions(model):
 
 
 def main():
-    """Build the FEBio input file for the current compression test."""
+    """Build and save the FEBio input file for the compression test.
+
+    Side effects:
+    - Loads the mesh via 'read_mesh_for_febio()'.
+    - Writes the FEB file configured in 'FEB_FILE'.
+    """
     febio_mesh = read_mesh_for_febio()
     print_febio_mesh_summary(febio_mesh)
 
@@ -54,6 +66,7 @@ def main():
 
     output_folder = FEB_FILE.parent
     output_folder.mkdir(parents=True, exist_ok=True)
+
 
     model.save(str(FEB_FILE))
 

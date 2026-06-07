@@ -45,7 +45,16 @@ CYLINDER_TYPES = ["solid", "hollow"]
 
 
 def calculate_result_numbers(cylinder_type):
-    """read the final values from the last run"""
+    """Grab numbers from the last HDF5 and compute extra metrics.
+
+    Parameters:
+    cylinder_type : str
+        'solid' or 'hollow' — used for theoretical stiffness calculation.
+
+    Returns:
+    dict
+        A small dict with nodes, elements, max values, stiffness and error.
+    """
     result_values = read_last_result_values(HDF5_FILE)
     top_face_reaction_forces = read_reaction_forces_for_node_set(
         HDF5_FILE,
@@ -78,13 +87,27 @@ def calculate_result_numbers(cylinder_type):
 
 
 def remove_old_hdf5_file():
-    """remove old hdf5 output so we do not read stale results"""
+    """Delete the previous HDF5 output so we don't read stale data.
+
+    Simple helper used before launching each new pipeline run.
+    """
     if HDF5_FILE.exists():
         HDF5_FILE.unlink()
 
 
 def run_pipeline_with_settings(cylinder_type, mesh_size):
-    """run main once with temporary settings"""
+    """Run the main pipeline once with temporary environment variables.
+
+    Parameters:
+    cylinder_type : str
+        'solid' or 'hollow'.
+    mesh_size : float
+        The mesh size to request from the meshing step.
+
+    Returns:
+    dict
+        A dict with the numbers collected after the run plus timing.
+    """
     print(f"\nrunning {cylinder_type} cylinder with mesh size {mesh_size}")
 
     environment = os.environ.copy()
@@ -110,7 +133,12 @@ def run_pipeline_with_settings(cylinder_type, mesh_size):
 
 
 def write_results(rows):
-    """save the study results to csv"""
+    """Save the current study rows into the CSV file.
+
+    Parameters:
+    rows : list[dict]
+        Rows produced so far. This is witten to 'RESULTS_FILE'.
+    """
     RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)
 
     fieldnames = [
@@ -136,6 +164,11 @@ def write_results(rows):
 
 
 def main():
+    """Run the mesh convergence study and write results as we go.
+
+    This loops over the configured mesh sizes and cylinder types and
+    appends results to the CSV so you can stop and resume the study.
+    """
     print("starting mesh convergence study")
 
     rows = []

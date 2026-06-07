@@ -41,6 +41,16 @@ def check_file_exists(file_path, description):
 
 
 def main():
+    """Orchestrate the full pipeline from geometry to results.
+
+    Effects:
+    - Runs the FreeCAD script to produce 'STEP_FILE'.
+    - Runs the Gmsh script to produce 'MSH_FILE'.
+    - Runs the appropriate FEBio builder to create 'FEB_FILE'.
+    - Runs 'febio4' to execute the solver and generate '.xplt' results.
+    - Runs the result extraction script to produce summary output.
+    """
+
     print("Starting the pipeline!!")
 
     # FreeCAD creates the cylinder geometry and saves it as a STEP file.

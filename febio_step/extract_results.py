@@ -33,15 +33,24 @@ LOG_FILE = FEB_FILE.with_suffix(".log")
 
 
 def febio_finished_normally():
-    """check if febio says it ended normally"""
+    """Check the FEBio log for the normal termination message.
+
+    Returns True if the log file exists and contains the 'N O R M A L'
+    termination phrase.
+    """
     if not LOG_FILE.exists():
         return False
 
-    return "N O R M A L   T E R M I N A T I O N" in LOG_FILE.read_text()
+    return 'N O R M A L   T E R M I N A T I O N' in LOG_FILE.read_text()
 
 
 def convert_xplt_to_hdf5():
-    """convert the xplt file so python can read it"""
+def convert_xplt_to_hdf5():
+    """Convert a FEBio '.xplt' file to HDF5 for easier access in Python.
+
+    This writes 'HDF5_FILE' and temporarily patches h5py to avoid storing a
+    duplicate 'faces' attribute that can get huge on fine meshes.
+    """
     if not XPLT_FILE.exists():
         raise FileNotFoundError(f"FEBio xplt file was not found: {XPLT_FILE}")
 
@@ -64,6 +73,14 @@ def convert_xplt_to_hdf5():
 
 
 def print_result_summary(name, values):
+def print_result_summary(name, values):
+    """Print simple stats (count, max, mean, min/max components).
+
+    name : str
+        Header printed for the section.
+    values : np.ndarray
+        Array of vectors (N x dim).
+    """
     magnitude = np.linalg.norm(values, axis=1)
 
     print(f"\n{name.lower()}")
@@ -75,7 +92,15 @@ def print_result_summary(name, values):
 
 
 def print_compression_stiffness(top_face_reaction_forces):
-    """print the stiffness from febio and from the simple theory"""
+def print_compression_stiffness(top_face_reaction_forces):
+    """Compute and print stiffness vs simple theory for the top face.
+
+    Parameters:
+    top_face_reaction_forces : np.ndarray
+        Reaction forces for nodes on the top face (N x 3).
+
+    Prints a short comparison between FEBio stiffness and the E*A/L formula.
+    """
     total_reaction_force, z_reaction_force, stiffness = calculate_compression_stiffness(
         top_face_reaction_forces,
         COMPRESSION_DISPLACEMENT_Z,
@@ -100,7 +125,12 @@ def print_compression_stiffness(top_face_reaction_forces):
 
 
 def main():
-    """print a small summary of the simulation results"""
+def main():
+    """Convert the '.xplt' to HDF5 and print a short summary of results.
+
+    The function is tolerant of missing or non-convertible '.xplt' files and
+    checks the FEBio log to report whether the run finished normally.
+    """
     print(f"reading febio result file: {XPLT_FILE}")
 
     try:

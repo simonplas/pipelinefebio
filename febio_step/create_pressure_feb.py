@@ -18,13 +18,23 @@ from febio_step.febio_helpers import (
 
 
 def check_geometry_type():
-    """Internal pressure only makes sense for the hollow cylinder"""
+    """Ensure the geometry is a hollow cylinder for internal pressure.
+
+    Raises ValueError if 'CYLINDER_TYPE' is not 'hollow'.
+    """
     if CYLINDER_TYPE != "hollow":
         raise ValueError('Set CYLINDER_TYPE = "hollow" in config.py before using internal pressure.')
 
 
 def add_support_boundary_condition(model):
-    """Fix the bottom face so the tube is stable during pressurize"""
+    """Add a fixed support BC on the 'FIXED_NODE_SET'.
+
+    Parameters:
+    model : feb.model.Model
+        The pyfebio model to modify.
+
+    Adds a zero-displacement BC fixing x, y and z on the fixed node set.
+    """
     model.boundary_.add_bc(
         feb.boundary.BCZeroDisplacement(
             node_set=FIXED_NODE_SET,
@@ -36,7 +46,14 @@ def add_support_boundary_condition(model):
 
 
 def add_internal_pressure(model):
-    """Apply pressure to the inner wall of the hollow cylinder"""
+    """Apply an internal pressure load to the configured surface.
+
+    Parameters:
+    model : feb.model.Model
+        The pyfebio model to update.
+
+    Adds a PressureLoad on 'PRESSURE_SURFACE' scaled by 'INTERNAL_PRESSURE'.
+    """
     model.loads_.add_surface_load(
         feb.loads.PressureLoad(
             surface=PRESSURE_SURFACE,
@@ -46,7 +63,12 @@ def add_internal_pressure(model):
 
 
 def main():
-    """Build a FEBio file for pressure loading from the inside wall"""
+    """Create and save the FEBio input file for the internal pressure case.
+
+    Side effects:
+    - Loads the mesh via 'read_mesh_for_febio()'.
+    - Writes the FEB file to 'PRESSURE_FEB_FILE'.
+    """
     check_geometry_type()
 
     febio_mesh = read_mesh_for_febio()

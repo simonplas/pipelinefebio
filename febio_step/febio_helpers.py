@@ -1,9 +1,8 @@
-"""
-helper functions for creating FEBio models.
+"""Helpful bits for building FEBio models.
 
-The compression and pressure scripts use the same mesh, material, solver, load
-curve, and output setup. Keeping that code here avoids importing one load case
-from the other.
+The compression and pressure scripts share mesh, material, solver, load curve
+and output setup. Keeping these helpers here avoids copying code between the
+load cases.
 """
 
 from pathlib import Path
@@ -30,7 +29,14 @@ FIXED_NODE_SET = "bottom_face"
 SOLID_PART = "stent_volume"
 
 def print_febio_mesh_summary(mesh):
-    """Print a short check of the labels pyfebio found in the mesh"""
+    """Print a quick summary of parts, surfaces and node sets found.
+
+    Parameters:
+    mesh : feb.mesh.Mesh
+        The pyfebio mesh returned by 'feb.mesh.translate_meshio'.
+
+    This just prints what labels FEBio sees so we can sanity-check the mesh.
+    """
     solid_parts = [elements.name for elements in mesh.elements]
     surfaces = [surface.name for surface in mesh.surfaces]
     node_sets = [node_set.name for node_set in mesh.node_sets]
@@ -42,7 +48,11 @@ def print_febio_mesh_summary(mesh):
 
 
 def read_mesh_for_febio():
-    """Read the Gmsh mesh and convert it to a pyfebio mesh"""
+    """Load the Gmsh '.msh' and translate it to a pyfebio mesh.
+
+    Returns the pyfebio mesh object that contains 'elements', 'surfaces' and
+    'node_sets'.
+    """
     print(f"Reading Gmsh mesh: {MSH_FILE}")
 
     gmsh_mesh = meshio.gmsh.read(MSH_FILE)
@@ -52,7 +62,15 @@ def read_mesh_for_febio():
 
 
 def add_stainless_steel_material(model):
-    """Add a stainless steel material model and assign it to the solid part"""
+    """Add a simple isotropic elastic material and a matching solid domain.
+
+    Parameters:
+    model : feb.model.Model
+        The pyfebio model to update.
+
+    The function registers a material with the name from config and creates
+    a solid domain that expects elements labelled 'SOLID_PART'.
+    """
     material = feb.material.IsotropicElastic(
         name=MATERIAL_NAME,
         E=feb.material.MaterialParameter(text=YOUNG_MODULUS),
@@ -67,7 +85,10 @@ def add_stainless_steel_material(model):
 
 
 def add_load_curve(model):
-    """Add a linear load curve from 0 to 100 percent."""
+    """Add a basic linear load curve (0 -> 1) with id=1.
+
+    The boundary conditions and loads in the models reference this curve (lc=1).
+    """
     model.loaddata_.add_load_curve(
         feb.loaddata.LoadCurve(
             id=1,
@@ -77,6 +98,10 @@ def add_load_curve(model):
 
 
 def add_output_requests(model):
+    """Tell FEBio to write a standard set of variables to the plotfile.
+
+    This requests displacement, stress, Lagrange strain and reaction forces.
+    """
     model.output_.add_plotfile(
         feb.output.OutputPlotfile(
             all_vars=[
@@ -90,10 +115,18 @@ def add_output_requests(model):
 
 
 def add_solver_control(model):
+    """Set a basic control block with time steps and output stride.
+
+    Parameters:
+    model : feb.model.Model
+        The model to configure.
+
+    Uses values from 'config.py'.
+    """
     model.control_ = feb.control.Control(
         time_steps=FEBIO_TIME_STEPS,
         step_size=FEBIO_STEP_SIZE,
         plot_stride=FEBIO_PLOT_STRIDE,
         output_stride=FEBIO_OUTPUT_STRIDE,
-        time_stepper=None,
     )
+    

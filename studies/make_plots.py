@@ -19,7 +19,16 @@ YOUNGS_MODULUS_FILE = RESULTS_FOLDER / "youngs_modulus.csv"
 
 
 def read_csv_rows(file_path):
-    """read a csv and keep the rows that worked"""
+    """Read the CSV and return only the runs that succeeded.
+
+    Parameters:
+    file_path : pathlib.Path
+        The study CSV file to read.
+
+    Returns:
+    list[dict]
+        Rows where the 'status' field is 'ok'.
+    """
     with file_path.open() as csv_file:
         reader = csv.DictReader(csv_file)
         rows = list(reader)
@@ -28,13 +37,39 @@ def read_csv_rows(file_path):
 
 
 def rows_for_cylinder_type(rows, cylinder_type, x_column):
-    """get rows for one cylinder type"""
+    """Get rows for one cylinder type and sort them by a column.
+
+    Parameters:
+    rows : list[dict]
+        Study rows (from 'read_csv_rows').
+    cylinder_type : str
+        'solid' or 'hollow'.
+    x_column : str
+        Column name used for sorting (converted to float).
+
+    Returns:
+    list[dict]
+        Matching rows sorted by the x_column.
+    """
     matching_rows = [row for row in rows if row["cylinder_type"] == cylinder_type]
     return sorted(matching_rows, key=lambda row: float(row[x_column]))
 
 
 def values_from_rows(rows, column, scale=1.0):
-    """read one number column from the rows"""
+    """Pull numbers from a column and apply a scale.
+
+    Parameters:
+    rows : list[dict]
+        Rows with the numeric column.
+    column : str
+        Column name to convert to float.
+    scale : float
+        Divide the numbers by this (default 1.0).
+
+    Returns:
+    list[float]
+        Scaled numbers.
+    """
     return [float(row[column]) / scale for row in rows]
 
 
@@ -49,7 +84,11 @@ def plot_two_cylinder_types(
     x_scale=1.0,
     y_scale=1.0,
 ):
-    """plot solid and hollow in one figure"""
+    """Plot 'solid' and 'hollow' cylinders on the same figure and save it.
+
+    Parameters are straightforward: column names, labels, title and output name.
+    x_scale and y_scale let you rescale units (e.g. Pa -> GPa).
+    """
     plt.figure(figsize=(7, 4.5))
 
     for cylinder_type in ["solid", "hollow"]:
@@ -77,7 +116,10 @@ def plot_two_cylinder_types(
 
 
 def make_mesh_convergence_plots():
-    """make the mesh convergence plots"""
+    """Make the mesh convergence figures from the CSV results.
+
+    Reads 'MESH_CONVERGENCE_FILE' and writes images into the figures folder.
+    """
     rows = read_csv_rows(MESH_CONVERGENCE_FILE)
 
     plot_two_cylinder_types(
@@ -129,7 +171,10 @@ def make_mesh_convergence_plots():
 
 
 def make_youngs_modulus_plots():
-    """make the youngs modulus plots"""
+    """Make plots that show how changing Young's modulus affects results.
+
+    Reads 'YOUNGS_MODULUS_FILE' and writes images into the figures folder.
+    """
     rows = read_csv_rows(YOUNGS_MODULUS_FILE)
 
     plot_two_cylinder_types(
@@ -176,6 +221,10 @@ def make_youngs_modulus_plots():
 
 
 def main():
+    """Make the figures folder (if needed) and save all plots.
+
+    This is the simple script entry point used when running the module.
+    """
     print("making plots")
     FIGURE_FOLDER.mkdir(parents=True, exist_ok=True)
 
