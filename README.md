@@ -32,6 +32,10 @@ At the moment, the pipeline can:
   stiffness values with Python;
 - run small parameter studies for mesh convergence and Young's modulus.
 
+There is also a separate experimental stent workflow. This is not part of the
+normal `main.py` pipeline yet, because selecting the correct boundaries on a
+real stent STEP file is more complicated than on the simple cylinder.
+
 ## Project structure
 
 ```text
@@ -41,10 +45,12 @@ At the moment, the pipeline can:
 ├── freecad_step/
 │   └── script.py
 ├── gmsh_step/
-│   └── mesh.py
+│   ├── mesh.py
+│   └── mesh_stent_selection.py
 ├── febio_step/
 │   ├── create_compression_feb.py
 │   ├── create_pressure_feb.py
+│   ├── create_stent_pressure_feb.py
 │   ├── extract_results.py
 │   ├── febio_helpers.py
 │   └── result_helpers.py
@@ -156,6 +162,28 @@ febio_step/jobs/cylinder/compression_cylinder.hdf5
 
 FEBio Studio is not required to run the pipeline. It is still useful for
 opening the `.feb` or `.xplt` files visually.
+
+## Experimental stent workflow
+
+The real stent STEP-file is kept separate from the normal cylinder pipeline for
+now. The cylinder pipeline is the reproducible core of the project. The stent
+scripts are an exploratory extension to test whether a more complex implant
+geometry can be meshed and labelled automatically.
+
+To try the stent workflow manually:
+
+```bash
+python gmsh_step/mesh_stent_selection.py
+python febio_step/create_stent_pressure_feb.py
+cd febio_step/jobs/stent
+febio4 -i pressure_stent.feb
+cd ../../..
+```
+
+This creates a labelled stent mesh and a first pressure-based FEBio model. It
+should be treated as experimental, because the inner-wall and support-region
+selection still needs more validation before it can be used as part of the main
+pipeline.
 
 ## FEBio model creation
 
